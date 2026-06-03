@@ -1,124 +1,123 @@
 import streamlit as st
-import joblib
-import numpy as np
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-# =========================
-# LOAD MODEL
-# =========================
-model = joblib.load("life_expectancy_model.pkl")
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-st.set_page_config(page_title="Life Expectancy AI", layout="wide")
+# ----------------------------
+# PAGE SETUP
+# ----------------------------
+st.set_page_config(page_title="Life Expectancy Dashboard", layout="wide")
 
-# =========================
-# TITLE
-# =========================
 st.title("🌍 Life Expectancy Prediction Dashboard")
-st.markdown("Predict life expectancy using WHO health & economic indicators")
+st.markdown("Professional ML Dashboard using Streamlit")
 
-# =========================
-# LAYOUT
-# =========================
-col1, col2, col3 = st.columns(3)
+# ----------------------------
+# LOAD DATA
+# ----------------------------
+df = pd.read_csv("Life Expectancy Data.csv")
+df.columns = df.columns.str.strip()
+df = df.dropna()
 
-with col1:
-    year = st.number_input("Year", 2000, 2015, 2015)
-    status = st.selectbox("Status", ["Developing", "Developed"])
-    status = 1 if status == "Developed" else 0
-    adult_mortality = st.number_input("Adult Mortality")
+st.sidebar.success("Dashboard Loaded ✔")
 
-with col2:
-    infant_deaths = st.number_input("Infant Deaths")
-    alcohol = st.number_input("Alcohol")
-    bmi = st.number_input("BMI")
-    hiv = st.number_input("HIV/AIDS")
-    gdp = st.number_input("GDP")
+# ----------------------------
+# TABS (PROFESSIONAL STYLE)
+# ----------------------------
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📊 Data",
+    "📈 Visualization",
+    "🤖 Model",
+    "🎯 Prediction"
+])
 
-with col3:
-    schooling = st.number_input("Schooling")
-    percentage_expenditure = st.number_input("Percentage Expenditure")
-    hepatitis_b = st.number_input("Hepatitis B")
-    measles = st.number_input("Measles")
-    population = st.number_input("Population")
+# ----------------------------
+# TAB 1 - DATA
+# ----------------------------
+with tab1:
+    st.subheader("Dataset Overview")
+    st.dataframe(df.head())
 
-# extra inputs (hidden section)
-under_five_deaths = st.number_input("Under Five Deaths")
-polio = st.number_input("Polio")
-total_expenditure = st.number_input("Total Expenditure")
-diphtheria = st.number_input("Diphtheria")
-thinness_1_19 = st.number_input("Thinness 1-19 Years")
-thinness_5_9 = st.number_input("Thinness 5-9 Years")
-income = st.number_input("Income Composition")
+    st.write("Shape:", df.shape)
 
-# =========================
-# INPUT ARRAY
-# =========================
-input_data = np.array([[
-    year,
-    status,
-    adult_mortality,
-    infant_deaths,
-    alcohol,
-    percentage_expenditure,
-    hepatitis_b,
-    measles,
-    bmi,
-    under_five_deaths,
-    polio,
-    total_expenditure,
-    diphtheria,
-    hiv,
-    gdp,
-    population,
-    thinness_1_19,
-    thinness_5_9,
-    income,
-    schooling
-]])
+# ----------------------------
+# TAB 2 - VISUALIZATION
+# ----------------------------
+with tab2:
+    st.subheader("Correlation Heatmap")
 
-# =========================
-# PREDICTION
-# =========================
-st.markdown("---")
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.heatmap(df.select_dtypes(include=np.number).corr(), cmap="coolwarm", ax=ax)
+    st.pyplot(fig)
 
-if st.button("🔮 Predict Life Expectancy"):
-    prediction = model.predict(input_data)[0]
+    st.subheader("Distribution")
 
-    st.success(f"🌟 Predicted Life Expectancy: {prediction:.2f} years")
+    num_col = st.selectbox("Select column", df.select_dtypes(include=np.number).columns)
 
-    # Insight box
-    if prediction > 75:
-        st.info("High life expectancy country")
-    elif prediction > 60:
-        st.warning("Medium life expectancy country")
-    else:
-        st.error("Low life expectancy country")
+    fig2, ax2 = plt.subplots()
+    sns.histplot(df[num_col], kde=True, ax=ax2)
+    st.pyplot(fig2)
 
-# =========================
-# FEATURE IMPORTANCE CHART
-# =========================
-st.markdown("---")
-st.subheader("📊 Feature Importance (Model Insight)")
+# ----------------------------
+# TAB 3 - MODEL
+# ----------------------------
+with tab3:
+    st.subheader("Model Training")
 
-features = [
-    "Year","Status","Adult Mortality","Infant Deaths","Alcohol",
-    "Percentage Expenditure","Hepatitis B","Measles","BMI",
-    "Under Five Deaths","Polio","Total Expenditure","Diphtheria",
-    "HIV/AIDS","GDP","Population","Thinness 1-19","Thinness 5-9",
-    "Income","Schooling"
-]
+    target = "Life expectancy"
 
-importance = model.feature_importances_
+    X = df.select_dtypes(include=np.number).drop(columns=[target], errors="ignore")
+    y = df[target]
 
-df_imp = pd.DataFrame({
-    "Feature": features,
-    "Importance": importance
-}).sort_values(by="Importance", ascending=False)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
-st.bar_chart(df_imp.set_index("Feature"))
+    model = LinearRegression()
+    model.fit(X_train, y_train)
 
-# =========================
-# FOOTER INSIGHT
-# =========================
-st.markdown("---")
-st.info("Built using Random Forest Regressor | WHO Life Expectancy Dataset")
+    y_pred = model.predict(X_test)
+
+    mae = mean_absolute_error(y_test, y_pred)
+    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+    r2 = r2_score(y_test, y_pred)
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric("MAE", f"{mae:.2f}")
+    col2.metric("RMSE", f"{rmse:.2f}")
+    col3.metric("R² Score", f"{r2:.2f}")
+
+    fig3, ax3 = plt.subplots()
+    ax3.scatter(y_test, y_pred)
+    ax3.set_xlabel("Actual")
+    ax3.set_ylabel("Predicted")
+    ax3.set_title("Actual vs Predicted")
+    st.pyplot(fig3)
+
+# ----------------------------
+# TAB 4 - PREDICTION
+# ----------------------------
+with tab4:
+    st.subheader("Make Prediction")
+
+    target = "Life expectancy"
+    X = df.select_dtypes(include=np.number).drop(columns=[target], errors="ignore")
+
+    input_data = []
+
+    for col in X.columns:
+        val = st.number_input(f"{col}", float(df[col].mean()))
+        input_data.append(val)
+
+    if st.button("Predict"):
+        model = LinearRegression()
+        model.fit(X, df[target])
+
+        prediction = model.predict(np.array(input_data).reshape(1, -1))
+
+        st.success(f"🌟 Predicted Life Expectancy: {prediction[0]:.2f}")
