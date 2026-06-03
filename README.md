@@ -1,2 +1,2 @@
-# Pragra-Python-AI-ML-Learning
+# Python-AI-ML-Learning
 Folder for Python Notes
