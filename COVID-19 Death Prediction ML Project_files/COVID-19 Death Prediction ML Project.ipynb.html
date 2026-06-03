@@ -1,0 +1,283 @@
+<html>
+<head>
+<title>COVID-19 Death Prediction ML Project.ipynb</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #7a7e85;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+.ls0 { height: 1px; border-width: 0; color: #43454a; background-color:#43454a}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+COVID-19 Death Prediction ML Project.ipynb</font>
+</center></td></tr></table>
+<pre><span class="s0">#%% md 
+                              #### COVID-19 Death Prediction ML Project ### <hr class="ls0">#%% 
+</span><span class="s1"># 1. IMPORT LIBRARIES</span>
+
+<span class="s2">import </span><span class="s0">pandas </span><span class="s2">as </span><span class="s0">pd</span>
+<span class="s2">import </span><span class="s0">numpy </span><span class="s2">as </span><span class="s0">np</span>
+<span class="s2">import </span><span class="s0">matplotlib</span><span class="s3">.</span><span class="s0">pyplot </span><span class="s2">as </span><span class="s0">plt</span>
+
+<span class="s2">from </span><span class="s0">sklearn</span><span class="s3">.</span><span class="s0">model_selection </span><span class="s2">import </span><span class="s0">train_test_split</span>
+<span class="s2">from </span><span class="s0">sklearn</span><span class="s3">.</span><span class="s0">preprocessing </span><span class="s2">import </span><span class="s0">LabelEncoder</span>
+<span class="s2">from </span><span class="s0">sklearn</span><span class="s3">.</span><span class="s0">impute </span><span class="s2">import </span><span class="s0">SimpleImputer</span>
+<span class="s2">from </span><span class="s0">sklearn</span><span class="s3">.</span><span class="s0">metrics </span><span class="s2">import </span><span class="s0">mean_absolute_error</span><span class="s3">, </span><span class="s0">mean_squared_error</span><span class="s3">, </span><span class="s0">r2_score</span>
+<span class="s2">from </span><span class="s0">sklearn</span><span class="s3">.</span><span class="s0">linear_model </span><span class="s2">import </span><span class="s0">LinearRegression</span>
+
+<span class="s2">import </span><span class="s0">xgboost </span><span class="s2">as </span><span class="s0">xgb</span>
+
+<span class="s2">import </span><span class="s0">warnings</span>
+<span class="s0">warnings</span><span class="s3">.</span><span class="s0">filterwarnings</span><span class="s3">(</span><span class="s4">&quot;ignore&quot;</span><span class="s3">)</span><hr class="ls0"><span class="s0">#%% 
+</span><span class="s1"># 2. LOAD DATASET</span>
+
+<span class="s0">df </span><span class="s3">= </span><span class="s0">pd</span><span class="s3">.</span><span class="s0">read_csv</span><span class="s3">(</span><span class="s4">&quot;/Users/rubys/Pragra-Python-AI-ML-Learning/Provisional_COVID-19_Deaths_by_Sex_and_Age_20260602.csv&quot;</span><span class="s3">)</span>
+
+<span class="s0">print</span><span class="s3">(</span><span class="s4">&quot;Original Shape:&quot;</span><span class="s3">, </span><span class="s0">df</span><span class="s3">.</span><span class="s0">shape</span><span class="s3">)</span>
+<span class="s0">print</span><span class="s3">(</span><span class="s0">df</span><span class="s3">.</span><span class="s0">head</span><span class="s3">())</span><hr class="ls0"><span class="s0">#%% 
+</span><span class="s1"># 3. DATA CLEANING</span>
+
+<span class="s1"># Replace missing-like values</span>
+<span class="s0">df</span><span class="s3">.</span><span class="s0">replace</span><span class="s3">([</span><span class="s4">&quot;Suppressed&quot;</span><span class="s3">, </span><span class="s4">&quot;NA&quot;</span><span class="s3">, </span><span class="s4">&quot;NaN&quot;</span><span class="s3">, </span><span class="s4">&quot;&quot;</span><span class="s3">], </span><span class="s0">np</span><span class="s3">.</span><span class="s0">nan</span><span class="s3">, </span><span class="s0">inplace</span><span class="s3">=</span><span class="s2">True</span><span class="s3">)</span>
+
+<span class="s1"># Remove commas from numeric values</span>
+<span class="s2">for </span><span class="s0">col </span><span class="s2">in </span><span class="s0">df</span><span class="s3">.</span><span class="s0">columns</span><span class="s3">:</span>
+    <span class="s0">df</span><span class="s3">[</span><span class="s0">col</span><span class="s3">] = </span><span class="s0">df</span><span class="s3">[</span><span class="s0">col</span><span class="s3">].</span><span class="s0">astype</span><span class="s3">(</span><span class="s0">str</span><span class="s3">).</span><span class="s0">str</span><span class="s3">.</span><span class="s0">replace</span><span class="s3">(</span><span class="s4">&quot;,&quot;</span><span class="s3">, </span><span class="s4">&quot;&quot;</span><span class="s3">)</span>
+
+<span class="s1"># Numeric columns</span>
+<span class="s0">num_cols </span><span class="s3">= [</span>
+    <span class="s4">&quot;COVID-19 Deaths&quot;</span><span class="s3">,</span>
+    <span class="s4">&quot;Total Deaths&quot;</span><span class="s3">,</span>
+    <span class="s4">&quot;Pneumonia Deaths&quot;</span><span class="s3">,</span>
+    <span class="s4">&quot;Influenza Deaths&quot;</span>
+<span class="s3">]</span>
+
+<span class="s1"># Convert numeric columns</span>
+<span class="s2">for </span><span class="s0">col </span><span class="s2">in </span><span class="s0">num_cols</span><span class="s3">:</span>
+    <span class="s2">if </span><span class="s0">col </span><span class="s2">in </span><span class="s0">df</span><span class="s3">.</span><span class="s0">columns</span><span class="s3">:</span>
+        <span class="s0">df</span><span class="s3">[</span><span class="s0">col</span><span class="s3">] = </span><span class="s0">pd</span><span class="s3">.</span><span class="s0">to_numeric</span><span class="s3">(</span><span class="s0">df</span><span class="s3">[</span><span class="s0">col</span><span class="s3">], </span><span class="s0">errors</span><span class="s3">=</span><span class="s4">&quot;coerce&quot;</span><span class="s3">)</span>
+
+<span class="s1"># Target column</span>
+<span class="s0">target </span><span class="s3">= </span><span class="s4">&quot;COVID-19 Deaths&quot;</span>
+
+<span class="s1"># Remove missing target rows</span>
+<span class="s0">df </span><span class="s3">= </span><span class="s0">df</span><span class="s3">.</span><span class="s0">dropna</span><span class="s3">(</span><span class="s0">subset</span><span class="s3">=[</span><span class="s0">target</span><span class="s3">])</span>
+
+<span class="s0">print</span><span class="s3">(</span><span class="s4">&quot;After Cleaning Shape:&quot;</span><span class="s3">, </span><span class="s0">df</span><span class="s3">.</span><span class="s0">shape</span><span class="s3">)</span><hr class="ls0"><span class="s0">#%% 
+</span><span class="s1"># 4. OUTLIER HANDLING</span>
+
+<span class="s0">Q1 </span><span class="s3">= </span><span class="s0">df</span><span class="s3">[</span><span class="s0">target</span><span class="s3">].</span><span class="s0">quantile</span><span class="s3">(</span><span class="s5">0.25</span><span class="s3">)</span>
+<span class="s0">Q3 </span><span class="s3">= </span><span class="s0">df</span><span class="s3">[</span><span class="s0">target</span><span class="s3">].</span><span class="s0">quantile</span><span class="s3">(</span><span class="s5">0.75</span><span class="s3">)</span>
+
+<span class="s0">IQR </span><span class="s3">= </span><span class="s0">Q3 </span><span class="s3">- </span><span class="s0">Q1</span>
+
+<span class="s0">lower </span><span class="s3">= </span><span class="s0">Q1 </span><span class="s3">- </span><span class="s5">1.5 </span><span class="s3">* </span><span class="s0">IQR</span>
+<span class="s0">upper </span><span class="s3">= </span><span class="s0">Q3 </span><span class="s3">+ </span><span class="s5">1.5 </span><span class="s3">* </span><span class="s0">IQR</span>
+
+<span class="s0">df </span><span class="s3">= </span><span class="s0">df</span><span class="s3">[(</span><span class="s0">df</span><span class="s3">[</span><span class="s0">target</span><span class="s3">] &gt;= </span><span class="s0">lower</span><span class="s3">) &amp; (</span><span class="s0">df</span><span class="s3">[</span><span class="s0">target</span><span class="s3">] &lt;= </span><span class="s0">upper</span><span class="s3">)]</span>
+
+<span class="s0">print</span><span class="s3">(</span><span class="s4">&quot;After Outlier Removal:&quot;</span><span class="s3">, </span><span class="s0">df</span><span class="s3">.</span><span class="s0">shape</span><span class="s3">)</span>
+<hr class="ls0"><span class="s0">#%% 
+</span><span class="s1"># 5. EXPLORATORY DATA ANALYSIS</span>
+
+<span class="s0">print</span><span class="s3">(</span><span class="s4">&quot;</span><span class="s2">\n</span><span class="s4">===== DATA INFO =====&quot;</span><span class="s3">)</span>
+<span class="s0">print</span><span class="s3">(</span><span class="s0">df</span><span class="s3">.</span><span class="s0">info</span><span class="s3">())</span>
+
+<span class="s0">print</span><span class="s3">(</span><span class="s4">&quot;</span><span class="s2">\n</span><span class="s4">===== SUMMARY STATS =====&quot;</span><span class="s3">)</span>
+<span class="s0">print</span><span class="s3">(</span><span class="s0">df</span><span class="s3">[</span><span class="s0">target</span><span class="s3">].</span><span class="s0">describe</span><span class="s3">())</span>
+
+<span class="s0">print</span><span class="s3">(</span><span class="s4">&quot;</span><span class="s2">\n</span><span class="s4">===== MISSING VALUES =====&quot;</span><span class="s3">)</span>
+<span class="s0">print</span><span class="s3">(</span><span class="s0">df</span><span class="s3">.</span><span class="s0">isnull</span><span class="s3">().</span><span class="s0">sum</span><span class="s3">())</span>
+<hr class="ls0"><span class="s0">#%% 
+</span><span class="s1"># 6. DATA VISUALIZATION</span>
+
+<span class="s1"># 1. Distribution of target variable</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">figure</span><span class="s3">()</span>
+<span class="s0">df</span><span class="s3">[</span><span class="s0">target</span><span class="s3">].</span><span class="s0">hist</span><span class="s3">(</span><span class="s0">bins</span><span class="s3">=</span><span class="s5">30</span><span class="s3">)</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">title</span><span class="s3">(</span><span class="s4">&quot;Distribution of COVID-19 Deaths&quot;</span><span class="s3">)</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">xlabel</span><span class="s3">(</span><span class="s4">&quot;Deaths&quot;</span><span class="s3">)</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">ylabel</span><span class="s3">(</span><span class="s4">&quot;Frequency&quot;</span><span class="s3">)</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">show</span><span class="s3">()</span>
+
+
+<span class="s1"># 2. Year-wise trend</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">figure</span><span class="s3">()</span>
+<span class="s0">df</span><span class="s3">.</span><span class="s0">groupby</span><span class="s3">(</span><span class="s4">&quot;Year&quot;</span><span class="s3">)[</span><span class="s0">target</span><span class="s3">].</span><span class="s0">mean</span><span class="s3">().</span><span class="s0">plot</span><span class="s3">()</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">title</span><span class="s3">(</span><span class="s4">&quot;Average COVID-19 Deaths Over Years&quot;</span><span class="s3">)</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">xlabel</span><span class="s3">(</span><span class="s4">&quot;Year&quot;</span><span class="s3">)</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">ylabel</span><span class="s3">(</span><span class="s4">&quot;Average Deaths&quot;</span><span class="s3">)</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">show</span><span class="s3">()</span>
+
+
+<span class="s1"># 3. Month-wise trend (seasonality)</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">figure</span><span class="s3">()</span>
+<span class="s0">df</span><span class="s3">.</span><span class="s0">groupby</span><span class="s3">(</span><span class="s4">&quot;Month&quot;</span><span class="s3">)[</span><span class="s0">target</span><span class="s3">].</span><span class="s0">mean</span><span class="s3">().</span><span class="s0">plot</span><span class="s3">()</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">title</span><span class="s3">(</span><span class="s4">&quot;Average COVID-19 Deaths by Month&quot;</span><span class="s3">)</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">xlabel</span><span class="s3">(</span><span class="s4">&quot;Month&quot;</span><span class="s3">)</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">ylabel</span><span class="s3">(</span><span class="s4">&quot;Average Deaths&quot;</span><span class="s3">)</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">show</span><span class="s3">()</span>
+
+
+<span class="s1"># 4. Feature distributions (after cleaning — NOT outlier detection)</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">figure</span><span class="s3">(</span><span class="s0">figsize</span><span class="s3">=(</span><span class="s5">10</span><span class="s3">,</span><span class="s5">6</span><span class="s3">))</span>
+
+<span class="s0">df</span><span class="s3">[[</span>
+    <span class="s4">&quot;COVID-19 Deaths&quot;</span><span class="s3">,</span>
+    <span class="s4">&quot;Total Deaths&quot;</span><span class="s3">,</span>
+    <span class="s4">&quot;Pneumonia Deaths&quot;</span><span class="s3">,</span>
+    <span class="s4">&quot;Influenza Deaths&quot;</span>
+<span class="s3">]].</span><span class="s0">hist</span><span class="s3">(</span><span class="s0">bins</span><span class="s3">=</span><span class="s5">30</span><span class="s3">)</span>
+
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">suptitle</span><span class="s3">(</span><span class="s4">&quot;Feature Distributions (Cleaned Data)&quot;</span><span class="s3">)</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">show</span><span class="s3">()</span>
+<hr class="ls0"><span class="s0">#%% 
+</span><span class="s1"># 7. FEATURE ENGINEERING</span>
+
+<span class="s1"># Convert Year and Month</span>
+<span class="s0">df</span><span class="s3">[</span><span class="s4">&quot;Year&quot;</span><span class="s3">] = </span><span class="s0">pd</span><span class="s3">.</span><span class="s0">to_numeric</span><span class="s3">(</span><span class="s0">df</span><span class="s3">[</span><span class="s4">&quot;Year&quot;</span><span class="s3">], </span><span class="s0">errors</span><span class="s3">=</span><span class="s4">&quot;coerce&quot;</span><span class="s3">)</span>
+<span class="s0">df</span><span class="s3">[</span><span class="s4">&quot;Month&quot;</span><span class="s3">] = </span><span class="s0">pd</span><span class="s3">.</span><span class="s0">to_numeric</span><span class="s3">(</span><span class="s0">df</span><span class="s3">[</span><span class="s4">&quot;Month&quot;</span><span class="s3">], </span><span class="s0">errors</span><span class="s3">=</span><span class="s4">&quot;coerce&quot;</span><span class="s3">)</span>
+
+<span class="s1"># Seasonality features</span>
+<span class="s0">df</span><span class="s3">[</span><span class="s4">&quot;month_sin&quot;</span><span class="s3">] = </span><span class="s0">np</span><span class="s3">.</span><span class="s0">sin</span><span class="s3">(</span><span class="s5">2 </span><span class="s3">* </span><span class="s0">np</span><span class="s3">.</span><span class="s0">pi </span><span class="s3">* </span><span class="s0">df</span><span class="s3">[</span><span class="s4">&quot;Month&quot;</span><span class="s3">] / </span><span class="s5">12</span><span class="s3">)</span>
+<span class="s0">df</span><span class="s3">[</span><span class="s4">&quot;month_cos&quot;</span><span class="s3">] = </span><span class="s0">np</span><span class="s3">.</span><span class="s0">cos</span><span class="s3">(</span><span class="s5">2 </span><span class="s3">* </span><span class="s0">np</span><span class="s3">.</span><span class="s0">pi </span><span class="s3">* </span><span class="s0">df</span><span class="s3">[</span><span class="s4">&quot;Month&quot;</span><span class="s3">] / </span><span class="s5">12</span><span class="s3">)</span>
+
+<span class="s1"># Age encoding</span>
+<span class="s0">age_map </span><span class="s3">= {</span>
+    <span class="s4">&quot;0-17 years&quot;</span><span class="s3">: </span><span class="s5">0</span><span class="s3">,</span>
+    <span class="s4">&quot;18-29 years&quot;</span><span class="s3">: </span><span class="s5">1</span><span class="s3">,</span>
+    <span class="s4">&quot;30-49 years&quot;</span><span class="s3">: </span><span class="s5">2</span><span class="s3">,</span>
+    <span class="s4">&quot;50-64 years&quot;</span><span class="s3">: </span><span class="s5">3</span><span class="s3">,</span>
+    <span class="s4">&quot;65-74 years&quot;</span><span class="s3">: </span><span class="s5">4</span><span class="s3">,</span>
+    <span class="s4">&quot;75-84 years&quot;</span><span class="s3">: </span><span class="s5">5</span><span class="s3">,</span>
+    <span class="s4">&quot;85 years and over&quot;</span><span class="s3">: </span><span class="s5">6</span>
+<span class="s3">}</span>
+
+<span class="s0">df</span><span class="s3">[</span><span class="s4">&quot;age_encoded&quot;</span><span class="s3">] = </span><span class="s0">df</span><span class="s3">[</span><span class="s4">&quot;Age Group&quot;</span><span class="s3">].</span><span class="s0">map</span><span class="s3">(</span><span class="s0">age_map</span><span class="s3">)</span>
+<hr class="ls0"><span class="s0">#%% 
+</span><span class="s1"># 8. DROP UNUSED COLUMNS</span>
+
+<span class="s0">drop_cols </span><span class="s3">= [</span><span class="s4">&quot;Data As Of&quot;</span><span class="s3">, </span><span class="s4">&quot;Start Date&quot;</span><span class="s3">, </span><span class="s4">&quot;End Date&quot;</span><span class="s3">, </span><span class="s4">&quot;Footnote&quot;</span><span class="s3">]</span>
+
+<span class="s0">df </span><span class="s3">= </span><span class="s0">df</span><span class="s3">.</span><span class="s0">drop</span><span class="s3">(</span><span class="s0">columns</span><span class="s3">=[</span><span class="s0">c </span><span class="s2">for </span><span class="s0">c </span><span class="s2">in </span><span class="s0">drop_cols </span><span class="s2">if </span><span class="s0">c </span><span class="s2">in </span><span class="s0">df</span><span class="s3">.</span><span class="s0">columns</span><span class="s3">])</span>
+<hr class="ls0"><span class="s0">#%% 
+</span><span class="s1"># 9. PREPARE FEATURES &amp; TARGET</span>
+<span class="s0">X </span><span class="s3">= </span><span class="s0">df</span><span class="s3">.</span><span class="s0">drop</span><span class="s3">(</span><span class="s0">columns</span><span class="s3">=[</span><span class="s0">target</span><span class="s3">], </span><span class="s0">errors</span><span class="s3">=</span><span class="s4">&quot;ignore&quot;</span><span class="s3">)</span>
+<span class="s0">y </span><span class="s3">= </span><span class="s0">df</span><span class="s3">[</span><span class="s0">target</span><span class="s3">]</span>
+
+<span class="s1"># Encode categorical columns</span>
+<span class="s0">le </span><span class="s3">= </span><span class="s0">LabelEncoder</span><span class="s3">()</span>
+
+<span class="s2">for </span><span class="s0">col </span><span class="s2">in </span><span class="s0">X</span><span class="s3">.</span><span class="s0">select_dtypes</span><span class="s3">(</span><span class="s0">include</span><span class="s3">=</span><span class="s4">&quot;object&quot;</span><span class="s3">).</span><span class="s0">columns</span><span class="s3">:</span>
+    <span class="s0">X</span><span class="s3">[</span><span class="s0">col</span><span class="s3">] = </span><span class="s0">le</span><span class="s3">.</span><span class="s0">fit_transform</span><span class="s3">(</span><span class="s0">X</span><span class="s3">[</span><span class="s0">col</span><span class="s3">].</span><span class="s0">astype</span><span class="s3">(</span><span class="s0">str</span><span class="s3">))</span>
+
+<span class="s1"># Handle missing values</span>
+<span class="s0">imputer </span><span class="s3">= </span><span class="s0">SimpleImputer</span><span class="s3">(</span><span class="s0">strategy</span><span class="s3">=</span><span class="s4">&quot;median&quot;</span><span class="s3">)</span>
+
+<span class="s0">X </span><span class="s3">= </span><span class="s0">pd</span><span class="s3">.</span><span class="s0">DataFrame</span><span class="s3">(</span>
+    <span class="s0">imputer</span><span class="s3">.</span><span class="s0">fit_transform</span><span class="s3">(</span><span class="s0">X</span><span class="s3">),</span>
+    <span class="s0">columns</span><span class="s3">=</span><span class="s0">X</span><span class="s3">.</span><span class="s0">columns</span>
+<span class="s3">)</span><hr class="ls0"><span class="s0">#%% 
+</span><span class="s1"># 10. TIME-BASED TRAIN TEST SPLIT</span>
+
+<span class="s0">df_sorted </span><span class="s3">= </span><span class="s0">df</span><span class="s3">.</span><span class="s0">sort_values</span><span class="s3">(</span><span class="s0">by</span><span class="s3">=[</span><span class="s4">&quot;Year&quot;</span><span class="s3">, </span><span class="s4">&quot;Month&quot;</span><span class="s3">])</span>
+
+<span class="s0">X </span><span class="s3">= </span><span class="s0">df_sorted</span><span class="s3">.</span><span class="s0">drop</span><span class="s3">(</span><span class="s0">columns</span><span class="s3">=[</span><span class="s0">target</span><span class="s3">], </span><span class="s0">errors</span><span class="s3">=</span><span class="s4">&quot;ignore&quot;</span><span class="s3">)</span>
+<span class="s0">y </span><span class="s3">= </span><span class="s0">df_sorted</span><span class="s3">[</span><span class="s0">target</span><span class="s3">]</span>
+
+<span class="s1"># Encode categorical columns again</span>
+<span class="s2">for </span><span class="s0">col </span><span class="s2">in </span><span class="s0">X</span><span class="s3">.</span><span class="s0">select_dtypes</span><span class="s3">(</span><span class="s0">include</span><span class="s3">=</span><span class="s4">&quot;object&quot;</span><span class="s3">).</span><span class="s0">columns</span><span class="s3">:</span>
+    <span class="s0">X</span><span class="s3">[</span><span class="s0">col</span><span class="s3">] = </span><span class="s0">LabelEncoder</span><span class="s3">().</span><span class="s0">fit_transform</span><span class="s3">(</span><span class="s0">X</span><span class="s3">[</span><span class="s0">col</span><span class="s3">].</span><span class="s0">astype</span><span class="s3">(</span><span class="s0">str</span><span class="s3">))</span>
+
+<span class="s1"># Handle missing values again</span>
+<span class="s0">X </span><span class="s3">= </span><span class="s0">pd</span><span class="s3">.</span><span class="s0">DataFrame</span><span class="s3">(</span>
+    <span class="s0">SimpleImputer</span><span class="s3">(</span><span class="s0">strategy</span><span class="s3">=</span><span class="s4">&quot;median&quot;</span><span class="s3">).</span><span class="s0">fit_transform</span><span class="s3">(</span><span class="s0">X</span><span class="s3">),</span>
+    <span class="s0">columns</span><span class="s3">=</span><span class="s0">X</span><span class="s3">.</span><span class="s0">columns</span>
+<span class="s3">)</span>
+
+<span class="s1"># 80-20 split</span>
+<span class="s0">split </span><span class="s3">= </span><span class="s0">int</span><span class="s3">(</span><span class="s0">len</span><span class="s3">(</span><span class="s0">df_sorted</span><span class="s3">) * </span><span class="s5">0.8</span><span class="s3">)</span>
+
+<span class="s0">X_train </span><span class="s3">= </span><span class="s0">X</span><span class="s3">.</span><span class="s0">iloc</span><span class="s3">[:</span><span class="s0">split</span><span class="s3">]</span>
+<span class="s0">X_test </span><span class="s3">= </span><span class="s0">X</span><span class="s3">.</span><span class="s0">iloc</span><span class="s3">[</span><span class="s0">split</span><span class="s3">:]</span>
+
+<span class="s0">y_train </span><span class="s3">= </span><span class="s0">y</span><span class="s3">.</span><span class="s0">iloc</span><span class="s3">[:</span><span class="s0">split</span><span class="s3">]</span>
+<span class="s0">y_test </span><span class="s3">= </span><span class="s0">y</span><span class="s3">.</span><span class="s0">iloc</span><span class="s3">[</span><span class="s0">split</span><span class="s3">:]</span><hr class="ls0"><span class="s0">#%% 
+</span><span class="s1"># 11. MODEL TRAINING</span>
+
+<span class="s1"># Linear Regression</span>
+<span class="s0">lr </span><span class="s3">= </span><span class="s0">LinearRegression</span><span class="s3">()</span>
+<span class="s0">lr</span><span class="s3">.</span><span class="s0">fit</span><span class="s3">(</span><span class="s0">X_train</span><span class="s3">, </span><span class="s0">y_train</span><span class="s3">)</span>
+
+<span class="s1"># XGBoost</span>
+<span class="s0">xgb_model </span><span class="s3">= </span><span class="s0">xgb</span><span class="s3">.</span><span class="s0">XGBRegressor</span><span class="s3">(</span>
+    <span class="s0">n_estimators</span><span class="s3">=</span><span class="s5">300</span><span class="s3">,</span>
+    <span class="s0">learning_rate</span><span class="s3">=</span><span class="s5">0.05</span><span class="s3">,</span>
+    <span class="s0">max_depth</span><span class="s3">=</span><span class="s5">6</span><span class="s3">,</span>
+    <span class="s0">subsample</span><span class="s3">=</span><span class="s5">0.8</span><span class="s3">,</span>
+    <span class="s0">colsample_bytree</span><span class="s3">=</span><span class="s5">0.8</span><span class="s3">,</span>
+    <span class="s0">random_state</span><span class="s3">=</span><span class="s5">42</span>
+<span class="s3">)</span>
+
+<span class="s0">xgb_model</span><span class="s3">.</span><span class="s0">fit</span><span class="s3">(</span><span class="s0">X_train</span><span class="s3">, </span><span class="s0">y_train</span><span class="s3">)</span><hr class="ls0"><span class="s0">#%% 
+</span><span class="s1"># 12. MODEL EVALUATION</span>
+
+<span class="s2">def </span><span class="s0">evaluate</span><span class="s3">(</span><span class="s0">model</span><span class="s3">, </span><span class="s0">name</span><span class="s3">):</span>
+
+    <span class="s0">pred </span><span class="s3">= </span><span class="s0">model</span><span class="s3">.</span><span class="s0">predict</span><span class="s3">(</span><span class="s0">X_test</span><span class="s3">)</span>
+
+    <span class="s0">print</span><span class="s3">(</span><span class="s4">f&quot;</span><span class="s2">\n</span><span class="s4">===== </span><span class="s2">{</span><span class="s0">name</span><span class="s2">} </span><span class="s4">=====&quot;</span><span class="s3">)</span>
+    <span class="s0">print</span><span class="s3">(</span><span class="s4">&quot;MAE:&quot;</span><span class="s3">, </span><span class="s0">mean_absolute_error</span><span class="s3">(</span><span class="s0">y_test</span><span class="s3">, </span><span class="s0">pred</span><span class="s3">))</span>
+    <span class="s0">print</span><span class="s3">(</span><span class="s4">&quot;RMSE:&quot;</span><span class="s3">, </span><span class="s0">np</span><span class="s3">.</span><span class="s0">sqrt</span><span class="s3">(</span><span class="s0">mean_squared_error</span><span class="s3">(</span><span class="s0">y_test</span><span class="s3">, </span><span class="s0">pred</span><span class="s3">)))</span>
+    <span class="s0">print</span><span class="s3">(</span><span class="s4">&quot;R2:&quot;</span><span class="s3">, </span><span class="s0">r2_score</span><span class="s3">(</span><span class="s0">y_test</span><span class="s3">, </span><span class="s0">pred</span><span class="s3">))</span>
+
+
+<span class="s0">evaluate</span><span class="s3">(</span><span class="s0">lr</span><span class="s3">, </span><span class="s4">&quot;Linear Regression&quot;</span><span class="s3">)</span>
+<span class="s0">evaluate</span><span class="s3">(</span><span class="s0">xgb_model</span><span class="s3">, </span><span class="s4">&quot;XGBoost&quot;</span><span class="s3">)</span><hr class="ls0"><span class="s0">#%% 
+</span><span class="s1"># 13. ACTUAL VS PREDICTED</span>
+
+<span class="s0">pred </span><span class="s3">= </span><span class="s0">xgb_model</span><span class="s3">.</span><span class="s0">predict</span><span class="s3">(</span><span class="s0">X_test</span><span class="s3">)</span>
+
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">figure</span><span class="s3">()</span>
+
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">scatter</span><span class="s3">(</span><span class="s0">y_test</span><span class="s3">, </span><span class="s0">pred</span><span class="s3">, </span><span class="s0">alpha</span><span class="s3">=</span><span class="s5">0.4</span><span class="s3">)</span>
+
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">xlabel</span><span class="s3">(</span><span class="s4">&quot;Actual&quot;</span><span class="s3">)</span>
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">ylabel</span><span class="s3">(</span><span class="s4">&quot;Predicted&quot;</span><span class="s3">)</span>
+
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">title</span><span class="s3">(</span><span class="s4">&quot;Actual vs Predicted (XGBoost)&quot;</span><span class="s3">)</span>
+
+<span class="s0">plt</span><span class="s3">.</span><span class="s0">show</span><span class="s3">()</span>
+<hr class="ls0"><span class="s0">#%% 
+</span><span class="s1"># 14. FEATURE IMPORTANCE</span>
+
+<span class="s0">importance </span><span class="s3">= </span><span class="s0">pd</span><span class="s3">.</span><span class="s0">DataFrame</span><span class="s3">({</span>
+    <span class="s4">&quot;Feature&quot;</span><span class="s3">: </span><span class="s0">X_train</span><span class="s3">.</span><span class="s0">columns</span><span class="s3">,</span>
+    <span class="s4">&quot;Importance&quot;</span><span class="s3">: </span><span class="s0">xgb_model</span><span class="s3">.</span><span class="s0">feature_importances_</span>
+<span class="s3">})</span>
+
+<span class="s0">importance </span><span class="s3">= </span><span class="s0">importance</span><span class="s3">.</span><span class="s0">sort_values</span><span class="s3">(</span>
+    <span class="s0">by</span><span class="s3">=</span><span class="s4">&quot;Importance&quot;</span><span class="s3">,</span>
+    <span class="s0">ascending</span><span class="s3">=</span><span class="s2">False</span>
+<span class="s3">)</span>
+
+<span class="s0">print</span><span class="s3">(</span><span class="s4">&quot;</span><span class="s2">\n</span><span class="s4">Top 10 Features:&quot;</span><span class="s3">)</span>
+<span class="s0">print</span><span class="s3">(</span><span class="s0">importance</span><span class="s3">.</span><span class="s0">head</span><span class="s3">(</span><span class="s5">10</span><span class="s3">))</span>
+<hr class="ls0"><span class="s0">#%% 
+</span><span class="s1"># 15. FINAL MODEL SCORES</span>
+
+<span class="s0">results </span><span class="s3">= {</span>
+    <span class="s4">&quot;Linear Regression&quot;</span><span class="s3">: </span><span class="s0">lr</span><span class="s3">.</span><span class="s0">score</span><span class="s3">(</span><span class="s0">X_test</span><span class="s3">, </span><span class="s0">y_test</span><span class="s3">),</span>
+    <span class="s4">&quot;XGBoost&quot;</span><span class="s3">: </span><span class="s0">xgb_model</span><span class="s3">.</span><span class="s0">score</span><span class="s3">(</span><span class="s0">X_test</span><span class="s3">, </span><span class="s0">y_test</span><span class="s3">)</span>
+<span class="s3">}</span>
+
+<span class="s0">print</span><span class="s3">(</span><span class="s4">&quot;</span><span class="s2">\n</span><span class="s4">===== FINAL MODEL SCORES =====&quot;</span><span class="s3">)</span>
+<span class="s0">print</span><span class="s3">(</span><span class="s0">results</span><span class="s3">)</span></pre>
+</body>
+</html>
